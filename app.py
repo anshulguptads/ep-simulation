@@ -1,13 +1,12 @@
 # app.py
 # Executive Presence Simulation – High‑Stakes Client Negotiation (Student‑facing)
 # --------------------------------------------------------------
-# Streamlit single‑file app with sidebar navigation. No external assets required.
+# Streamlit single‑file app with sidebar navigation and demo session state.
 # To run locally:  pip install -r requirements.txt  &&  streamlit run app.py
 
 import io
 import math
-import base64
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,7 +21,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# Minimal theming via markdown (kept subtle for Streamlit Cloud)
+# Minimal theming via markdown (subtle styling)
 st.markdown(
     """
     <style>
@@ -31,10 +30,43 @@ st.markdown(
       .metric {background:#0f172a;border:1px solid #1f2937;border-radius:16px;padding:14px;color:#e5e7eb}
       .kpi-title {color:#cbd5e1;font-size:13px;margin-bottom:6px}
       .avatar-frame {border:1px solid #18314f;border-radius:16px;padding:10px;background:linear-gradient(180deg,#0b1b33,#0a1020)}
+      footer {color:#94a3b8}
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+# -------------------------
+# Session State (Demo Data)
+# -------------------------
+DEFAULT_RADAR_LABELS = ["Gravitas","Persuasion","Vocal","Gestures","Brevity"]
+DEFAULT_BAR_CATS = ["Opening", "Objections", "Close"]
+
+if "attempt1_radar" not in st.session_state:
+    st.session_state.attempt1_radar = [5.0, 5.5, 6.0, 5.0, 4.8]
+if "attempt2_radar" not in st.session_state:
+    st.session_state.attempt2_radar = [8.0, 7.5, 8.2, 7.1, 7.8]
+if "attempt1_bars" not in st.session_state:
+    st.session_state.attempt1_bars = [6.0, 5.2, 4.6]
+if "attempt2_bars" not in st.session_state:
+    st.session_state.attempt2_bars = [8.3, 7.9, 7.2]
+
+# Simple helper to compute weekly composite from attempts (for demo)
+if "weekly_baseline" not in st.session_state:
+    st.session_state.weekly_baseline = [2.0, 3.0, 3.8, 4.8, 5.8, 6.5]
+if "weekly_actual" not in st.session_state:
+    # Start at attempt1 avg and grow towards attempt2 avg
+    a1 = float(np.mean(st.session_state.attempt1_radar))
+    a2 = float(np.mean(st.session_state.attempt2_radar))
+    growth = np.linspace(a1, a2, 6)
+    st.session_state.weekly_actual = list(np.clip(growth, 0, 10))
+
+# Sidebar actions
+with st.sidebar:
+    st.header("Demo Controls")
+    if st.button("Reset Demo Data"):
+        st.session_state.clear()
+        st.experimental_rerun()
 
 # -------------------------
 # Utility: Mock Avatar (Matplotlib drawing)
@@ -45,25 +77,25 @@ def render_mock_avatar(size: int = 280) -> io.BytesIO:
     ax.set_aspect('equal')
     ax.axis('off')
 
-    # Background glow
-    circle_bg = plt.Circle((0.5, 0.55), 0.45, color=(0.10, 0.16, 0.28), zorder=0)
+    # Background
+    circle_bg = plt.Circle((0.5, 0.55), 0.45)
     ax.add_artist(circle_bg)
 
     # Face
-    face = plt.Circle((0.5, 0.62), 0.22, color=(1.0, 0.85, 0.70), zorder=1)
+    face = plt.Circle((0.5, 0.62), 0.22, color=(1.0, 0.85, 0.70))
     ax.add_artist(face)
     # Eyes
-    ax.plot([0.44, 0.56], [0.66, 0.66], marker='o', color='black', markersize=4, linestyle='')
+    ax.plot([0.44, 0.56], [0.66, 0.66], marker='o', markersize=4, linestyle='')
     # Smile
     theta = np.linspace(math.pi*0.1, math.pi*0.9, 100)
-    ax.plot(0.5 + 0.12*np.cos(theta), 0.60 + 0.07*np.sin(theta), color='#222')
+    ax.plot(0.5 + 0.12*np.cos(theta), 0.60 + 0.07*np.sin(theta))
 
-    # Suit (simple V‑shape)
-    ax.add_patch(plt.Polygon([[0.18,0.10],[0.5,0.42],[0.82,0.10]], closed=True, color='#0f172a'))
-    ax.add_patch(plt.Polygon([[0.5,0.42],[0.65,0.10],[0.82,0.10]], closed=True, color='#111a2b'))
-    ax.add_patch(plt.Polygon([[0.5,0.42],[0.35,0.10],[0.18,0.10]], closed=True, color='#111a2b'))
+    # Suit
+    ax.add_patch(plt.Polygon([[0.18,0.10],[0.5,0.42],[0.82,0.10]], closed=True))
+    ax.add_patch(plt.Polygon([[0.5,0.42],[0.65,0.10],[0.82,0.10]], closed=True))
+    ax.add_patch(plt.Polygon([[0.5,0.42],[0.35,0.10],[0.18,0.10]], closed=True))
     # Tie
-    ax.add_patch(plt.Polygon([[0.48,0.42],[0.52,0.42],[0.54,0.25],[0.46,0.25]], closed=True, color='#1f6feb'))
+    ax.add_patch(plt.Polygon([[0.48,0.42],[0.52,0.42],[0.54,0.25],[0.46,0.25]], closed=True))
 
     buf = io.BytesIO()
     plt.tight_layout(pad=0)
@@ -107,6 +139,7 @@ def grouped_bar(categories: List[str], first: List[float], second: List[float]):
     ax.bar(x + width/2, second, width)
     ax.set_xticks(x, categories)
     ax.set_ylabel('Score')
+    ax.set_ylim(0, 10)
     st.pyplot(fig, use_container_width=False)
 
 
@@ -117,6 +150,7 @@ def line_growth(weeks: List[str], baseline: List[float], actual: List[float]):
     ax.plot(x, actual, marker='o')
     ax.set_xticks(x, weeks)
     ax.set_ylabel('Composite EP Score')
+    ax.set_ylim(0, 10)
     st.pyplot(fig, use_container_width=False)
 
 # -------------------------
@@ -152,7 +186,8 @@ if choice == "Home":
                     '<span class="chip">Gravitas & Composure</span>'
                     '<span class="chip">ROI Storytelling</span>'
                     '<span class="chip">Executive Q&A</span>', unsafe_allow_html=True)
-        st.markdown("\n")
+        st.markdown("
+")
         k1, k2, k3 = st.columns(3)
         with k1:
             st.markdown('<div class="metric"><div class="kpi-title">Session Length</div><h3>12–15 min</h3></div>', unsafe_allow_html=True)
@@ -180,7 +215,9 @@ elif choice == "Scenario Brief":
         """
     )
     st.subheader("Objectives & Parameters")
-    st.markdown("- **Objective:** Renewal at target terms + upsell entry\n- **Stakeholder:** CFO (risk‑averse, data‑driven, concise)\n- **Timebox:** 8 minutes main exchange, 4 minutes Q&A")
+    st.markdown("- **Objective:** Renewal at target terms + upsell entry
+- **Stakeholder:** CFO (risk‑averse, data‑driven, concise)
+- **Timebox:** 8 minutes main exchange, 4 minutes Q&A")
 
     st.subheader("What You'll Be Assessed On")
     st.markdown("Clarity of opening, confidence under pressure, objection handling, ROI framing, and executive‑level brevity.")
@@ -191,7 +228,8 @@ elif choice == "Scenario Brief":
 elif choice == "Baseline Simulation":
     st.header("Baseline Simulation")
     st.write(
-        "Hold a live conversation with the client avatar. Expect price pushback, timeline compression, and competitive references.\n"
+        "Hold a live conversation with the client avatar. Expect price pushback, timeline compression, and competitive references.
+"
         "Maintain composure, lead with outcomes, and secure agreement on value before discount.")
     c1, c2 = st.columns([1,1])
     with c1:
@@ -211,30 +249,62 @@ elif choice == "Live Coaching":
     st.write("Non‑intrusive nudges appear when your pacing, framing, or presence drifts. You stay in flow while receiving timely, actionable cues.")
     st.warning("Breathe. Shorten your sentence. Lead with impact → ROI in 90 days.")
     st.markdown("**Example Prompts**")
-    st.markdown("- Slow down 10% — let the point land.\n- Anchor on outcomes before price.\n- Use a brief silence — regain control.\n- Translate features → CFO metrics.")
+    st.markdown("- Slow down 10% — let the point land.
+- Anchor on outcomes before price.
+- Use a brief silence — regain control.
+- Translate features → CFO metrics.")
 
 # -------------------------
-# Feedback (Charts)
+# Feedback (Charts) with Session State Sliders
 # -------------------------
 elif choice == "Feedback":
-    st.header("Feedback & Scorecard")
+    st.header("Feedback & Scorecard — Demo Data You Can Adjust")
+
+    # Radar sliders for Attempt 1 & 2
+    st.subheader("Executive‑Presence Footprint")
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Executive‑Presence Footprint")
-        radar_chart(
-            labels=["Gravitas","Persuasion","Vocal","Gestures","Brevity"],
-            baseline=[5.0, 5.5, 6.0, 5.0, 4.8],
-            improved=[8.0, 7.5, 8.2, 7.1, 7.8],
-        )
-        st.caption("Your footprint expands after targeted practice.")
+        st.caption("Attempt 1 (Baseline)")
+        a1_vals = []
+        for i, label in enumerate(DEFAULT_RADAR_LABELS):
+            a1_vals.append(st.slider(f"{label} — Attempt 1", 0.0, 10.0, float(st.session_state.attempt1_radar[i]), 0.1))
+        if st.button("Save Attempt 1"):
+            st.session_state.attempt1_radar = a1_vals
+            st.success("Attempt 1 saved.")
     with c2:
-        st.subheader("Attempt Comparison")
-        grouped_bar(
-            categories=["Opening", "Objections", "Close"],
-            first=[6.0, 5.2, 4.6],
-            second=[8.3, 7.9, 7.2],
-        )
-        st.caption("Notable gains in opening, objection handling, and closing discipline.")
+        st.caption("Attempt 2 (After Learning)")
+        a2_vals = []
+        for i, label in enumerate(DEFAULT_RADAR_LABELS):
+            a2_vals.append(st.slider(f"{label} — Attempt 2", 0.0, 10.0, float(st.session_state.attempt2_radar[i]), 0.1))
+        if st.button("Save Attempt 2"):
+            st.session_state.attempt2_radar = a2_vals
+            st.success("Attempt 2 saved.")
+
+    radar_chart(DEFAULT_RADAR_LABELS, st.session_state.attempt1_radar, st.session_state.attempt2_radar)
+
+    st.divider()
+
+    # Grouped bars for opening/objections/close
+    st.subheader("Attempt Comparison")
+    c3, c4 = st.columns(2)
+    with c3:
+        b1_vals = []
+        for i, cat in enumerate(DEFAULT_BAR_CATS):
+            b1_vals.append(st.slider(f"{cat} — Attempt 1", 0.0, 10.0, float(st.session_state.attempt1_bars[i]), 0.1))
+        if st.button("Save Bars A1"):
+            st.session_state.attempt1_bars = b1_vals
+            st.success("Attempt 1 bars saved.")
+    with c4:
+        b2_vals = []
+        for i, cat in enumerate(DEFAULT_BAR_CATS):
+            b2_vals.append(st.slider(f"{cat} — Attempt 2", 0.0, 10.0, float(st.session_state.attempt2_bars[i]), 0.1))
+        if st.button("Save Bars A2"):
+            st.session_state.attempt2_bars = b2_vals
+            st.success("Attempt 2 bars saved.")
+
+    grouped_bar(DEFAULT_BAR_CATS, st.session_state.attempt1_bars, st.session_state.attempt2_bars)
+
+    st.info("Tip: Adjust sliders, save attempts, and revisit Growth Dashboard to see trajectory update.")
 
 # -------------------------
 # Learning Modules
@@ -269,14 +339,18 @@ elif choice == "Re‑Simulation":
     st.markdown("**What Good Looks Like**: Clear outcome anchor → risk plan → confident price defense → crisp close with agreed next step.")
 
 # -------------------------
-# Growth Dashboard
+# Growth Dashboard (driven by session state)
 # -------------------------
 elif choice == "Growth Dashboard":
     st.header("Your Journey Over Time")
+
+    # Recompute weekly_actual to reflect the saved radar attempts
+    a1 = float(np.mean(st.session_state.attempt1_radar))
+    a2 = float(np.mean(st.session_state.attempt2_radar))
+    st.session_state.weekly_actual = list(np.linspace(a1, a2, 6))
+
     weeks = ["Week 1","W2","W3","W4","W5","W6"]
-    baseline = [2.0, 3.0, 3.8, 4.8, 5.8, 6.5]
-    actual = [2.0, 3.5, 4.6, 6.0, 7.2, 8.0]
-    line_growth(weeks, baseline, actual)
+    line_growth(weeks, st.session_state.weekly_baseline, st.session_state.weekly_actual)
 
     st.subheader("Export Portfolio")
     st.write("Download a concise report with highlights, before/after clips, and mastered behaviors.")
