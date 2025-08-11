@@ -1,15 +1,12 @@
 # app.py
-# Executive Presence Simulation – High‑Stakes Client Negotiation (Student‑facing)
-# -----------------------------------------------------------------------------
-# Streamlit single‑file app with:
-# - Student Dashboard (multi‑scenario launcher)
-# - Pre‑filled charts for multiple attempts (A1, A2, A3)
-# - End‑to‑end journey pages for the Negotiation scenario
-# To run:  pip install -r requirements.txt  &&  streamlit run app.py
+# Executive Presence Simulator — Student Dashboard + Three Scenarios
+# -----------------------------------------------------------------
+# Hardened navigation (no errors on click), three simulations only,
+# full end-to-end journeys for each scenario with pre-filled charts.
 
 import io
 import math
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +16,7 @@ import streamlit as st
 # Page Setup
 # -------------------------
 st.set_page_config(
-    page_title="Executive Presence Simulator — High‑Stakes Client Negotiation",
+    page_title="Executive Presence Simulator",
     page_icon="💼",
     layout="wide",
 )
@@ -33,7 +30,6 @@ st.markdown(
       .kpi-title {color:#cbd5e1;font-size:13px;margin-bottom:6px}
       .avatar-frame {border:1px solid #18314f;border-radius:16px;padding:10px;background:linear-gradient(180deg,#0b1b33,#0a1020)}
       .card {border:1px solid #1f2937;border-radius:16px;padding:16px;background:#0f172a}
-      footer {color:#94a3b8}
       .status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
     </style>
     """,
@@ -43,38 +39,85 @@ st.markdown(
 # -------------------------
 # Demo Data / Session State
 # -------------------------
+SCENARIOS: Dict[str, Dict] = {
+    "Negotiation": {
+        "title": "High‑Stakes Client Negotiation",
+        "chips": ["Board‑level Dialogue","Objection Handling","Gravitas & Composure","ROI Storytelling","Executive Q&A"],
+        "overview": "Experience a realistic boardroom renewal conversation with a C‑suite client. Practice persuasive framing under pressure and build the executive presence required to land the deal with confidence.",
+        "brief": {
+            "objective": "Renewal at target terms + upsell entry",
+            "stakeholder": "CFO (risk‑averse, data‑driven, concise)",
+            "timebox": "8 minutes main exchange, 4 minutes Q&A",
+            "assessment": "Opening clarity, confidence under pressure, objection handling, ROI framing, executive brevity",
+            "prompt1": "We have two competing offers with better pricing. Convince me why we should renew at current terms.",
+        },
+        "attempt_radar": [
+            [5.0, 5.5, 6.0, 5.0, 4.8],
+            [7.6, 7.2, 7.9, 6.8, 7.3],
+            [8.4, 8.1, 8.6, 7.9, 8.2],
+        ],
+        "attempt_bars": [
+            [6.0, 5.2, 4.6],
+            [7.6, 7.2, 6.9],
+            [8.5, 8.0, 7.7],
+        ],
+    },
+    "BoardUpdate": {
+        "title": "Boardroom Strategic Update",
+        "chips": ["Executive Framing","Data‑to‑Insight","Stakeholder Control","Crisp Storyline","Q&A Handling"],
+        "overview": "Deliver a concise quarterly update to the Board, defend strategic pivots, and secure alignment on next‑quarter bets.",
+        "brief": {
+            "objective": "Land 3 strategic priorities with Board consensus",
+            "stakeholder": "Board (diverse viewpoints; time‑boxed)",
+            "timebox": "6 minutes update, 6 minutes Q&A",
+            "assessment": "Narrative arc, signal‑to‑noise, evidence quality, handling interruptions",
+            "prompt1": "You have 3 minutes left. Prioritize what matters most for next quarter.",
+        },
+        "attempt_radar": [
+            [5.2, 5.8, 5.9, 5.1, 5.0],
+            [7.0, 7.4, 7.6, 6.7, 6.9],
+            [8.1, 8.0, 8.3, 7.6, 7.8],
+        ],
+        "attempt_bars": [
+            [6.2, 5.4, 5.0],
+            [7.4, 7.1, 6.8],
+            [8.3, 8.0, 7.6],
+        ],
+    },
+    "CrisisComms": {
+        "title": "Crisis Communication Briefing",
+        "chips": ["Calm Authority","Message Control","Empathy","Fact‑based Clarity","Media Handling"],
+        "overview": "Run a controlled briefing after a reputational incident. Maintain composure, deliver clear facts, and protect trust.",
+        "brief": {
+            "objective": "Stabilize sentiment; outline corrective actions",
+            "stakeholder": "Employees + media (high scrutiny)",
+            "timebox": "5 minutes statement, 7 minutes Q&A",
+            "assessment": "Gravitas, transparency, bridge statements, empathy without liability",
+            "prompt1": "Can you guarantee this won’t happen again?",
+        },
+        "attempt_radar": [
+            [5.4, 5.2, 6.2, 5.3, 5.1],
+            [7.1, 6.9, 7.8, 6.7, 6.8],
+            [8.2, 7.9, 8.5, 7.8, 7.7],
+        ],
+        "attempt_bars": [
+            [5.8, 5.6, 5.1],
+            [7.3, 7.2, 6.9],
+            [8.2, 8.1, 7.5],
+        ],
+    },
+}
+
 DEFAULT_RADAR_LABELS = ["Gravitas","Persuasion","Vocal","Gestures","Brevity"]
 DEFAULT_BAR_CATS = ["Opening", "Objections", "Close"]
 WEEKS = ["Week 1","W2","W3","W4","W5","W6"]
 
-if "nav" not in st.session_state:
-    st.session_state.nav = "Student Dashboard"
-
-if "current_scenario" not in st.session_state:
-    st.session_state.current_scenario = None  # e.g., "Negotiation"
-
-# Pre‑filled scores (three attempts)
-if "attempt1_radar" not in st.session_state:
-    st.session_state.attempt1_radar = [5.0, 5.5, 6.0, 5.0, 4.8]
-if "attempt2_radar" not in st.session_state:
-    st.session_state.attempt2_radar = [7.6, 7.2, 7.9, 6.8, 7.3]
-if "attempt3_radar" not in st.session_state:
-    st.session_state.attempt3_radar = [8.4, 8.1, 8.6, 7.9, 8.2]
-
-if "attempt1_bars" not in st.session_state:
-    st.session_state.attempt1_bars = [6.0, 5.2, 4.6]
-if "attempt2_bars" not in st.session_state:
-    st.session_state.attempt2_bars = [7.6, 7.2, 6.9]
-if "attempt3_bars" not in st.session_state:
-    st.session_state.attempt3_bars = [8.5, 8.0, 7.7]
-
-# Baseline vs actual trajectory (derived from attempts 1→3)
-if "weekly_baseline" not in st.session_state:
-    st.session_state.weekly_baseline = [2.0, 3.0, 3.8, 4.8, 5.8, 6.5]
-if "weekly_actual" not in st.session_state:
-    a1 = float(np.mean(st.session_state.attempt1_radar))
-    a3 = float(np.mean(st.session_state.attempt3_radar))
-    st.session_state.weekly_actual = list(np.linspace(a1, a3, len(WEEKS)))
+if "view" not in st.session_state:
+    st.session_state.view = "dashboard"  # or "scenario"
+if "scenario_key" not in st.session_state:
+    st.session_state.scenario_key = None
+if "scenario_page" not in st.session_state:
+    st.session_state.scenario_page = "Overview"
 
 # -------------------------
 # Utilities
@@ -150,217 +193,206 @@ def grouped_bar(categories: List[str], series: List[List[float]], series_names: 
     st.pyplot(fig, use_container_width=False)
 
 
-def line_growth(weeks: List[str], baseline: List[float], actual: List[float]):
+def line_growth(weeks: List[str], series_dict: Dict[str, List[float]]):
     x = np.arange(len(weeks))
     fig, ax = plt.subplots(figsize=(7.2,3.8))
-    ax.plot(x, baseline, marker='o')
-    ax.fill_between(x, baseline, step='pre', alpha=0.10)
-    ax.plot(x, actual, marker='o')
-    ax.fill_between(x, actual, step='pre', alpha=0.18)
+    for name, vals in series_dict.items():
+        ax.plot(x, vals, marker='o', label=name)
+        ax.fill_between(x, vals, step='pre', alpha=0.12)
     ax.set_xticks(x, weeks)
     ax.set_ylabel('Composite EP Score')
     ax.set_ylim(0, 10)
-    ax.legend(["Baseline Path","Actual With Learning"])
+    ax.legend()
     st.pyplot(fig, use_container_width=False)
 
 # -------------------------
-# Sidebar Navigation
+# Layout Helpers
 # -------------------------
-sections = [
-    "Student Dashboard",
-    "Home",
-    "Scenario Brief",
-    "Baseline Simulation",
-    "Live Coaching",
-    "Feedback",
-    "Learning Modules",
-    "Re‑Simulation",
-    "Growth Dashboard",
-]
-choice = st.sidebar.radio("Navigate", sections, index=sections.index(st.session_state.nav), key="nav")
 
-# -------------------------
-# Student Dashboard (multi‑scenario launcher)
-# -------------------------
-if choice == "Student Dashboard":
-    st.title("Your Executive Presence Simulations")
-    st.write("Select a simulation to begin. Your latest scores are pre‑filled in charts for quick review.")
+def scenario_header(skey: str):
+    s = SCENARIOS[skey]
+    st.title(s["title"])
+    st.write(s["overview"]) 
+    chips = ''.join([f'<span class="chip">{c}</span>' for c in s["chips"]])
+    st.markdown(chips, unsafe_allow_html=True)
 
-    # Demo allocations
-    sims = [
-        {"key":"Negotiation","title":"High‑Stakes Client Negotiation","status":"In Progress","score":round(np.mean(st.session_state.attempt3_radar),1)},
-        {"key":"BoardUpdate","title":"Boardroom Strategic Update","status":"Assigned","score":None},
-        {"key":"CrisisComms","title":"Crisis Communication Briefing","status":"Assigned","score":None},
-        {"key":"InvestorPitch","title":"Investor Pitch for Funding","status":"Assigned","score":None},
-    ]
+    k1, k2, k3 = st.columns(3)
+    with k1:
+        st.markdown('<div class="metric"><div class="kpi-title">Session Length</div><h3>12–15 min</h3></div>', unsafe_allow_html=True)
+    with k2:
+        st.markdown('<div class="metric"><div class="kpi-title">Scenario Difficulty</div><h3>Progressive</h3></div>', unsafe_allow_html=True)
+    with k3:
+        st.markdown('<div class="metric"><div class="kpi-title">Focus Areas</div><h3>Gravitas • Persuasion • Control</h3></div>', unsafe_allow_html=True)
 
-    cols = st.columns(2)
-    for i, sim in enumerate(sims):
-        with cols[i%2]:
-            with st.container(border=True):
-                st.subheader(sim["title"])
-                status_color = "#34d399" if sim["status"]=="In Progress" else "#60a5fa"
-                st.markdown(f"<span class='status-dot' style='background:{status_color}'></span>**{sim['status']}**", unsafe_allow_html=True)
-                if sim["score"] is not None:
-                    st.metric("Latest Composite Score", sim["score"])
-                else:
-                    st.caption("Score available after first attempt.")
-                btn_label = "Resume" if sim["key"]=="Negotiation" else "Start"
-                if st.button(f"{btn_label}", key=f"btn_{sim['key']}"):
-                    st.session_state.current_scenario = sim["key"]
-                    # Navigate into the journey; Negotiation is fully wired
-                    st.session_state.nav = "Home" if sim["key"]=="Negotiation" else "Scenario Brief"
-                    st.experimental_rerun()
 
-    st.divider()
-    st.caption("Tip: Begin with the Negotiation simulation. Additional simulations will unlock progressively.")
-
-# -------------------------
-# Journey: Negotiation (fully wired)
-# -------------------------
-elif choice == "Home":
-    st.title("High‑Stakes Client Negotiation")
-    st.write(
-        """
-        Experience a realistic boardroom renewal conversation with a C‑suite client. Practice persuasive framing under pressure and
-        build the executive presence required to land the deal with confidence.
-        """
-    )
-    c1, c2, c3 = st.columns([1.2, 0.05, 1])
-    with c1:
-        st.markdown('<span class="chip">Board‑level Dialogue</span>'
-                    '<span class="chip">Objection Handling</span>'
-                    '<span class="chip">Gravitas & Composure</span>'
-                    '<span class="chip">ROI Storytelling</span>'
-                    '<span class="chip">Executive Q&A</span>', unsafe_allow_html=True)
-        k1, k2, k3 = st.columns(3)
-        with k1:
-            st.markdown('<div class="metric"><div class="kpi-title">Session Length</div><h3>12–15 min</h3></div>', unsafe_allow_html=True)
-        with k2:
-            st.markdown('<div class="metric"><div class="kpi-title">Scenario Difficulty</div><h3>Progressive</h3></div>', unsafe_allow_html=True)
-        with k3:
-            st.markdown('<div class="metric"><div class="kpi-title">Focus Areas</div><h3>Gravitas • Persuasion • Control</h3></div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="avatar-frame">', unsafe_allow_html=True)
-        st.image(render_mock_avatar().getvalue(), caption="Client (CFO)")
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('<div class="callout">“We have two competing offers with better pricing. Convince me why we should renew with you at current terms.”</div>', unsafe_allow_html=True)
-        st.info("Tip: Lead with outcomes. Quantify impact before discussing price.")
-
-elif choice == "Scenario Brief":
+def scenario_brief(skey: str):
+    b = SCENARIOS[skey]["brief"]
     st.header("Scenario Brief")
-    st.write(
-        """
-        You are renewing a global account with a C‑suite client. Two rivals are undercutting your price.
-        Your objective is to secure renewal at target terms and position a value‑based upsell. You will navigate pricing
-        pressure, risk concerns, and ROI scrutiny.
-        """
-    )
-    st.subheader("Objectives & Parameters")
-    st.markdown("- **Objective:** Renewal at target terms + upsell entry\n- **Stakeholder:** CFO (risk‑averse, data‑driven, concise)\n- **Timebox:** 8 minutes main exchange, 4 minutes Q&A")
-
+    st.markdown(f"- **Objective:** {b['objective']}\n- **Stakeholder:** {b['stakeholder']}\n- **Timebox:** {b['timebox']}")
     st.subheader("What You'll Be Assessed On")
-    st.markdown("Clarity of opening, confidence under pressure, objection handling, ROI framing, and executive‑level brevity.")
+    st.write(b["assessment"])
 
-elif choice == "Baseline Simulation":
+
+def scenario_baseline(skey: str):
+    b = SCENARIOS[skey]["brief"]
     st.header("Baseline Simulation")
-    st.write(
-        "Hold a live conversation with the client avatar. Expect price pushback, timeline compression, and competitive references.\n"
-        "Maintain composure, lead with outcomes, and secure agreement on value before discount.")
+    st.write("Hold a live conversation with the avatar. Expect pushback and time pressure. Maintain composure, lead with outcomes, and secure agreement on value before price.")
     c1, c2 = st.columns([1,1])
     with c1:
-        st.image(render_mock_avatar(300).getvalue(), caption="Client Avatar")
+        st.image(render_mock_avatar(300).getvalue(), caption="Avatar")
     with c2:
-        st.markdown('<div class="callout">Client: “If we match your terms, what guarantees do we have on time‑to‑value within this quarter?”</div>', unsafe_allow_html=True)
-        st.success("Hold a calm pause. Reframe to business outcomes, then address risk.")
+        st.markdown(f'<div class="callout">Client: “{b["prompt1"]}”</div>', unsafe_allow_html=True)
+        st.success("This is a demo build. Live capture will be configured here.")
 
-    st.markdown("**Journey Stages**")
-    st.markdown("1. Baseline → 2. Feedback → 3. Learn → 4. Re‑Sim → 5. Growth")
 
-elif choice == "Live Coaching":
+def scenario_coaching():
     st.header("Live Coaching Prompts")
-    st.write("Non‑intrusive nudges appear when your pacing, framing, or presence drifts. You stay in flow while receiving timely, actionable cues.")
+    st.write("Non‑intrusive nudges appear when pacing, framing, or presence drifts. You stay in flow while receiving timely cues.")
     st.warning("Breathe. Shorten your sentence. Lead with impact → ROI in 90 days.")
     st.markdown("**Example Prompts**")
     st.markdown("- Slow down 10% — let the point land.\n- Anchor on outcomes before price.\n- Use a brief silence — regain control.\n- Translate features → CFO metrics.")
 
-elif choice == "Feedback":
-    st.header("Feedback & Scorecard — Pre‑filled Attempts")
 
-    st.subheader("Executive‑Presence Footprint (Radar)")
+def scenario_feedback(skey: str):
+    st.header("Feedback & Scorecard — Pre‑filled Attempts")
     radar_chart(
         DEFAULT_RADAR_LABELS,
-        [
-            st.session_state.attempt1_radar,
-            st.session_state.attempt2_radar,
-            st.session_state.attempt3_radar,
-        ],
+        SCENARIOS[skey]["attempt_radar"],
         ["Attempt 1","Attempt 2","Attempt 3"],
     )
-
     st.divider()
-    st.subheader("Attempt Comparison (Opening • Objections • Close)")
     grouped_bar(
         DEFAULT_BAR_CATS,
-        [
-            st.session_state.attempt1_bars,
-            st.session_state.attempt2_bars,
-            st.session_state.attempt3_bars,
-        ],
+        SCENARIOS[skey]["attempt_bars"],
         ["Attempt 1","Attempt 2","Attempt 3"],
     )
+    st.info("Charts are pre‑filled with representative scores across three attempts. Live scoring will appear here.")
 
-    st.info("Charts are pre‑filled with representative scores across three attempts. Use them as exemplars in your leadership demo.")
 
-elif choice == "Learning Modules":
+def scenario_learning():
     st.header("Targeted Learning Modules")
     st.write("After feedback, complete short modules that strengthen specific behaviors observed in your session.")
-
     with st.expander("ROI Story in 60s"):
         st.write("Craft a concise value narrative that anchors the discussion on outcomes.")
         st.button("Practice", type="primary", disabled=True)
         st.button("View Example", disabled=True)
-
     with st.expander("Handling Price Pushback"):
-        st.write("Reframe discounts to risk‑adjusted ROI with confident, executive wording.")
+        st.write("Reframe discounts to risk‑adjusted ROI with confident wording.")
         st.button("Practice", type="primary", disabled=True)
         st.button("Drill", disabled=True)
-
     with st.expander("Composed Delivery"):
-        st.write("Use pacing, intentional pauses, and controlled gestures to project calm authority.")
+        st.write("Use pacing, pauses, and controlled gestures to project calm authority.")
         st.button("Practice", type="primary", disabled=True)
         st.button("Breathe", disabled=True)
 
-elif choice == "Re‑Simulation":
+
+def scenario_resim(skey: str):
     st.header("Re‑Simulation")
-    st.write("Face the same client persona with varied objection order. Demonstrate improved framing, calm under pressure, and a disciplined close.")
-    st.image(render_mock_avatar(260).getvalue(), caption="Client Avatar")
-    st.info("Acknowledge risk. Give a concrete plan. Then secure a micro‑agreement.")
-    st.markdown("**What Good Looks Like**: Clear outcome anchor → risk plan → confident price defense → crisp close with agreed next step.")
+    st.write("Face the same persona with varied objection order. Demonstrate improved framing, calm under pressure, and a disciplined close.")
+    st.image(render_mock_avatar(260).getvalue(), caption="Avatar")
+    st.info("Demo build: re‑simulation logic will be configured here.")
+    st.markdown("**What Good Looks Like**: Outcome anchor → risk plan → confident price defense → crisp close with agreed next step.")
 
-elif choice == "Growth Dashboard":
+
+def scenario_growth(skey: str):
     st.header("Your Journey Over Time")
-
-    # Update trajectory to reflect Attempts 1 → 3
-    a1 = float(np.mean(st.session_state.attempt1_radar))
-    a3 = float(np.mean(st.session_state.attempt3_radar))
-    st.session_state.weekly_actual = list(np.linspace(a1, a3, len(WEEKS)))
-
-    line_growth(WEEKS, st.session_state.weekly_baseline, st.session_state.weekly_actual)
-
+    # derive composite means per attempt to simulate growth curve
+    attempts = SCENARIOS[skey]["attempt_radar"]
+    a1 = float(np.mean(attempts[0])); a2 = float(np.mean(attempts[1])); a3 = float(np.mean(attempts[2]))
+    baseline = list(np.linspace(a1-3, a1+1, len(WEEKS)))
+    actual = list(np.linspace(a1, a3, len(WEEKS)))
+    line_growth(WEEKS, {"Baseline Path": baseline, "Actual With Learning": actual})
     st.subheader("Export Portfolio")
     st.write("Download a concise report with highlights, before/after clips, and mastered behaviors.")
     st.button("Download Report", disabled=True)
 
+
 # -------------------------
-# Footer
+# Sidebar Navigation
 # -------------------------
+if st.session_state.view == "dashboard":
+    st.sidebar.header("Navigate")
+    st.sidebar.radio("", ["Student Dashboard"], index=0, label_visibility="collapsed")
+else:
+    skey = st.session_state.scenario_key
+    st.sidebar.header("Scenario")
+    st.sidebar.write(f"**{SCENARIOS[skey]['title']}**")
+    page = st.sidebar.radio("Navigate", [
+        "Overview","Scenario Brief","Baseline Simulation","Live Coaching",
+        "Feedback","Learning Modules","Re‑Simulation","Growth Dashboard"
+    ], index=["Overview","Scenario Brief","Baseline Simulation","Live Coaching","Feedback","Learning Modules","Re‑Simulation","Growth Dashboard"].index(st.session_state.scenario_page))
+    st.session_state.scenario_page = page
+    if st.sidebar.button("← Back to Dashboard"):
+        st.session_state.view = "dashboard"
+        st.session_state.scenario_key = None
+        st.session_state.scenario_page = "Overview"
+        st.experimental_rerun()
+
+# -------------------------
+# Main Views
+# -------------------------
+if st.session_state.view == "dashboard":
+    st.title("Your Executive Presence Simulations")
+    st.write("Select a simulation to begin. All pages are configured with placeholders where live features will appear.")
+
+    # Only three simulations
+    sims = [
+        {"key":"Negotiation","status":"In Progress"},
+        {"key":"BoardUpdate","status":"Assigned"},
+        {"key":"CrisisComms","status":"Assigned"},
+    ]
+
+    cols = st.columns(3)
+    for i, sim in enumerate(sims):
+        skey = sim["key"]; meta = SCENARIOS[skey]
+        with cols[i]:
+            st.subheader(meta["title"])
+            status_color = "#34d399" if sim["status"]=="In Progress" else "#60a5fa"
+            st.markdown(f"<span class='status-dot' style='background:{status_color}'></span>**{sim['status']}**", unsafe_allow_html=True)
+            score = round(float(np.mean(meta["attempt_radar"][2])), 1)
+            st.metric("Latest Composite Score", score)
+            btn_label = "Resume" if sim["status"]=="In Progress" else "Start"
+            if st.button(btn_label, key=f"btn_{skey}"):
+                st.session_state.view = "scenario"
+                st.session_state.scenario_key = skey
+                st.session_state.scenario_page = "Overview"
+                st.experimental_rerun()
+
+    st.divider()
+    st.caption("Note: If a control is not yet live, the page will display a clear placeholder instead of an error.")
+
+else:
+    # Scenario view
+    skey = st.session_state.scenario_key
+    page = st.session_state.scenario_page
+
+    # Defensive guards
+    if skey not in SCENARIOS:
+        st.error("Scenario not found. Use the sidebar to go back to the dashboard.")
+    else:
+        if page == "Overview":
+            scenario_header(skey)
+        elif page == "Scenario Brief":
+            scenario_brief(skey)
+        elif page == "Baseline Simulation":
+            scenario_baseline(skey)
+        elif page == "Live Coaching":
+            scenario_coaching()
+        elif page == "Feedback":
+            scenario_feedback(skey)
+        elif page == "Learning Modules":
+            scenario_learning()
+        elif page == "Re‑Simulation":
+            scenario_resim(skey)
+        elif page == "Growth Dashboard":
+            scenario_growth(skey)
+        else:
+            st.info("This section will be configured. Please select another tab.")
+
 st.markdown("---")
 st.caption("This simulation is designed to help you build presence, persuasion, and composure in high‑stakes conversations. Complete the learning modules between attempts for best results.")
 
-# -------------------------
-# requirements.txt (include this in your repo)
-# -------------------------
+# requirements.txt
 # streamlit
 # matplotlib
 # numpy
