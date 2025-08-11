@@ -186,10 +186,9 @@ if choice == "Home":
                     '<span class="chip">Gravitas & Composure</span>'
                     '<span class="chip">ROI Storytelling</span>'
                     '<span class="chip">Executive Q&A</span>', unsafe_allow_html=True)
-       st.markdown("""
-**Week-over-Week Growth**  
-This chart shows your improvement trajectory between the first and second attempts across a simulated 6-week period.
-""")
+        st.markdown(""" **Week-over-Week Growth**  
+                    This chart shows your improvement trajectory between the first and second attempts across a simulated 6-week period.
+                    """)
  
         k1, k2, k3 = st.columns(3)
         with k1:
