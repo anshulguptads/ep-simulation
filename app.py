@@ -186,8 +186,11 @@ if choice == "Home":
                     '<span class="chip">Gravitas & Composure</span>'
                     '<span class="chip">ROI Storytelling</span>'
                     '<span class="chip">Executive Q&A</span>', unsafe_allow_html=True)
-        st.markdown("
-")
+       st.markdown("""
+**Week-over-Week Growth**  
+This chart shows your improvement trajectory between the first and second attempts across a simulated 6-week period.
+""")
+ 
         k1, k2, k3 = st.columns(3)
         with k1:
             st.markdown('<div class="metric"><div class="kpi-title">Session Length</div><h3>12–15 min</h3></div>', unsafe_allow_html=True)
